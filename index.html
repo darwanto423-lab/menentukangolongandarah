@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Kuis Ibu Kota Provinsi Indonesia</title>
+    <!-- Memuat Tailwind CSS untuk styling modern dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Menggunakan font Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            /* Menggunakan padding lebih besar untuk memberikan ruang pada ponsel */
+            padding: 1rem; 
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Mulai dari atas, bukan tengah vertikal */
+            background: linear-gradient(135deg, #e0f2fe 0%, #bfdbfe 100%); /* Warna latar belakang lebih lembut */
+        }
+        /* Custom style untuk menandai provinsi yang sudah terjawab */
+        .provinsi-item.solved {
+            background-color: #d1fae5; /* Light green */
+            border-left: 5px solid #059669; /* Emerald green */
+            transition: all 0.3s ease-in-out;
+        }
+        /* Gaya untuk item yang bisa diklik */
+        .provinsi-item {
+            cursor: pointer;
+            transition: background-color 0.15s, transform 0.1s;
+        }
+        .provinsi-item:not(.solved):hover {
+            background-color: #f3f4f6;
+            transform: translateY(-1px); /* Efek sedikit terangkat saat disentuh */
+        }
+        /* Mengatasi masalah tinggi input/button pada beberapa ponsel */
+        #answer-input {
+            min-height: 3rem; /* Memastikan tap target yang cukup besar */
+        }
+    </style>
+</head>
+<body class="p-4">
+
+<div id="game-container" class="w-full max-w-6xl mx-auto bg-white rounded-xl border border-gray-100 shadow-2xl p-4 md:p-10 mt-4 mb-4">
+
+    <h1 class="text-3xl md:text-4xl font-extrabold text-center text-blue-700 mb-6 border-b-4 border-blue-200 pb-3">
+        🇮🇩 Kuis Ibu Kota 38 Provinsi Indonesia
+    </h1>
+    <p class="text-center text-gray-600 mb-8 px-2 text-base md:text-lg">Uji pengetahuan siswa Anda tentang ibu kota provinsi terbaru.</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Tengah & Kanan: Kuis dan Daftar Provinsi (Ditaruh di atas untuk prioritas mobile) -->
+        <!-- Pindah skor ke grid tengah/kanan pada tampilan mobile/desktop, sehingga tidak menyisakan ruang kosong di kiri -->
+        <div class="lg:col-span-2 space-y-8 order-2 lg:order-1">
+            
+            <!-- Area Kuis Utama -->
+            <div id="quiz-area" class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500 transform transition duration-300 hover:shadow-xl">
+                <h3 class="text-2xl font-bold text-blue-800 mb-4">Pertanyaan:</h3>
+                <p id="question-text" class="text-xl font-medium text-gray-800 mb-5">Tekan "Mulai Kuis" untuk mendapatkan pertanyaan pertama!</p>
+                
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="answer-input" class="flex-grow p-3 border-2 border-blue-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner" placeholder="Ketik ibu kota di sini..." autocomplete="off">
+                    <button id="check-button" onclick="checkAnswer()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-150 transform hover:scale-105" disabled>
+                        Cek Jawaban
+                    </button>
+                    <button id="next-button" onclick="nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-150 transform hover:scale-105">
+                        Mulai Kuis / Lanjut
+                    </button>
+                </div>
+
+                <p id="feedback-text" class="mt-4 text-center text-lg font-semibold h-6"></p>
+            </div>
+
+            <!-- Daftar Provinsi (Bertindak sebagai Legend/Progress Map) -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-xl font-bold text-gray-700 mb-3">Progress Provinsi (Peta Legend)</h3>
+                <!-- Penyesuaian grid untuk memastikan nama provinsi tidak terpotong di ponsel kecil -->
+                <ul id="provinsi-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- Daftar provinsi akan diisi oleh JavaScript -->
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Kiri: Informasi Poin (Ditinggalkan sendiri) -->
+        <div class="lg:col-span-1 space-y-6 order-1 lg:order-2">
+            <!-- Papan skor tetap di sini, tetapi sekarang menjadi satu-satunya elemen di kolom ini -->
+            <div id="score-board" class="bg-yellow-100 p-4 rounded-xl shadow-md border-2 border-yellow-400">
+                <p class="text-lg font-semibold text-gray-800">Skor Saat Ini:</p>
+                <div class="text-4xl font-bold text-yellow-700 mt-1">
+                    <span id="score">0</span> / <span id="total-provinces">38</span>
+                </div>
+                <p id="remaining-provinces" class="text-sm text-gray-500 mt-2">Sisa: 38 Provinsi</p>
+            </div>
+
+            <!-- BAGIAN PETA TELAH DIHAPUS SEPERTI PERMINTAAN -->
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    // Data 38 Provinsi dan Ibu Kotanya
+    const provincesData = [
+        { name: "Aceh", capital: "Banda Aceh" },
+        { name: "Sumatera Utara", capital: "Medan" },
+        { name: "Sumatera Barat", capital: "Padang" },
+        { name: "Riau", capital: "Pekanbaru" },
+        { name: "Kepulauan Riau", capital: "Tanjung Pinang" },
+        { name: "Jambi", capital: "Jambi" },
+        { name: "Bengkulu", capital: "Bengkulu" },
+        { name: "Sumatera Selatan", capital: "Palembang" },
+        { name: "Kepulauan Bangka Belitung", capital: "Pangkal Pinang" },
+        { name: "Lampung", capital: "Bandar Lampung" },
+        { name: "Banten", capital: "Serang" },
+        { name: "DKI Jakarta", capital: "Jakarta" },
+        { name: "Jawa Barat", capital: "Bandung" },
+        { name: "Jawa Tengah", capital: "Semarang" },
+        { name: "DI Yogyakarta", capital: "Yogyakarta" },
+        { name: "Jawa Timur", capital: "Surabaya" },
+        { name: "Bali", capital: "Denpasar" },
+        { name: "Nusa Tenggara Barat", capital: "Mataram" },
+        { name: "Nusa Tenggara Timur", capital: "Kupang" },
+        { name: "Kalimantan Barat", capital: "Pontianak" },
+        { name: "Kalimantan Tengah", capital: "Palangka Raya" },
+        { name: "Kalimantan Selatan", capital: "Banjarbaru" },
+        { name: "Kalimantan Timur", capital: "Samarinda" },
+        { name: "Kalimantan Utara", capital: "Tanjung Selor" },
+        { name: "Sulawesi Utara", capital: "Manado" },
+        { name: "Sulawesi Tengah", capital: "Palu" },
+        { name: "Sulawesi Selatan", capital: "Makassar" },
+        { name: "Sulawesi Tenggara", capital: "Kendari" },
+        { name: "Gorontalo", capital: "Gorontalo" },
+        { name: "Sulawesi Barat", capital: "Mamuju" },
+        { name: "Maluku", capital: "Ambon" },
+        { name: "Maluku Utara", capital: "Sofifi" },
+        { name: "Papua", capital: "Jayapura" },
+        { name: "Papua Barat", capital: "Manokwari" },
+        { name: "Papua Tengah", capital: "Nabire" },
+        { name: "Papua Pegunungan", capital: "Wamena" },
+        { name: "Papua Selatan", capital: "Merauke" },
+        { name: "Papua Barat Daya", capital: "Sorong" }
+    ];
+
+    let score = 0;
+    const totalProvinces = provincesData.length;
+    let unsolvedProvinces = [...provincesData]; // Daftar provinsi yang belum terjawab
+    let currentProvince = null;
+
+    // DOM Elements
+    const provinceListElement = document.getElementById('provinsi-list');
+    const scoreElement = document.getElementById('score');
+    const totalProvincesElement = document.getElementById('total-provinces');
+    const remainingProvincesElement = document.getElementById('remaining-provinces');
+    const questionTextElement = document.getElementById('question-text');
+    const answerInputElement = document.getElementById('answer-input');
+    const feedbackTextElement = document.getElementById('feedback-text');
+    const checkButton = document.getElementById('check-button');
+    const nextButton = document.getElementById('next-button');
+
+    // Inisialisasi Game
+    function initializeGame() {
+        totalProvincesElement.textContent = totalProvinces;
+        createProvinceLegend();
+        nextQuestion(); // Langsung mulai kuis
+    }
+
+    // Fungsi baru untuk memuat pertanyaan spesifik saat provinsi diklik
+    window.loadSpecificQuestion = function(provinceName) {
+        const provinceData = provincesData.find(p => p.name === provinceName);
+        
+        if (provinceData) {
+            currentProvince = provinceData;
+            
+            // Periksa apakah provinsi ini masih ada di daftar yang belum terjawab
+            const isUnsolved = unsolvedProvinces.some(p => p.name === provinceName);
+            
+            if (isUnsolved) {
+                // Set pertanyaan baru
+                questionTextElement.textContent = `Anda memilih: Apa ibu kota dari Provinsi ${currentProvince.name}?`;
+                answerInputElement.value = '';
+                answerInputElement.focus();
+                checkButton.disabled = false;
+                
+                // Bersihkan feedback
+                feedbackTextElement.textContent = ``;
+                feedbackTextElement.classList.remove('text-red-500', 'text-green-600', 'text-blue-500');
+            } else {
+                // Jika sudah terjawab
+                feedbackTextElement.textContent = `Provinsi ${provinceName} sudah terjawab. Silakan pilih yang lain.`;
+                feedbackTextElement.classList.add('text-blue-500');
+                checkButton.disabled = true;
+            }
+        }
+    }
+
+    // Fungsi untuk membuat legend/daftar provinsi
+    function createProvinceLegend() {
+        provinceListElement.innerHTML = ''; // Kosongkan daftar
+        provincesData.forEach((province) => {
+            const li = document.createElement('li');
+            // Menambahkan padding p-3 untuk touch target yang lebih baik
+            li.className = 'provinsi-item p-3 bg-gray-50 rounded-md shadow-sm border-l-4 border-gray-300 text-sm font-medium cursor-pointer hover:bg-gray-100 transition duration-150';
+            li.id = `prov-${province.name.replace(/\s/g, '')}`; // ID unik tanpa spasi
+            li.textContent = province.name;
+            
+            // Tambahkan event listener saat item diklik
+            li.addEventListener('click', () => {
+                // Dapatkan elemen list item saat ini
+                const currentListItem = document.getElementById(`prov-${province.name.replace(/\s/g, '')}`);
+
+                // Hanya muat pertanyaan jika provinsi belum terjawab
+                if (!currentListItem.classList.contains('solved')) {
+                    loadSpecificQuestion(province.name);
+                } else {
+                    feedbackTextElement.textContent = `Provinsi ${province.name} sudah terjawab!`;
+                    feedbackTextElement.classList.add('text-blue-500');
+                }
+            });
+
+            provinceListElement.appendChild(li);
+        });
+    }
+
+    // Fungsi untuk mengambil pertanyaan berikutnya secara acak
+    function nextQuestion() {
+        feedbackTextElement.textContent = '';
+        answerInputElement.value = '';
+        answerInputElement.focus();
+        checkButton.disabled = false;
+        nextButton.textContent = "Lanjut";
+
+        if (unsolvedProvinces.length === 0) {
+            questionTextElement.textContent = `Selamat! Anda berhasil menjawab semua ${totalProvinces} provinsi!`;
+            checkButton.disabled = true;
+            nextButton.textContent = "Selesai";
+            return;
+        }
+
+        // Ambil provinsi secara acak dari daftar yang belum terjawab
+        const randomIndex = Math.floor(Math.random() * unsolvedProvinces.length);
+        currentProvince = unsolvedProvinces[randomIndex];
+
+        questionTextElement.textContent = `Apa ibu kota dari Provinsi ${currentProvince.name}?`;
+    }
+
+    // Fungsi untuk memeriksa jawaban
+    window.checkAnswer = function() {
+        if (!currentProvince) return;
+
+        const userAnswer = answerInputElement.value.trim().toLowerCase();
+        const correctAnswer = currentProvince.capital.toLowerCase();
+
+        // Toleransi jawaban: mengabaikan spasi, 'kota', atau 'di'
+        const normalizedAnswer = userAnswer.replace(/^(kota|di)\s+/i, '').replace(/\s/g, '');
+        const normalizedCorrect = correctAnswer.replace(/^(kota|di)\s+/i, '').replace(/\s/g, '');
+
+        if (normalizedAnswer === normalizedCorrect) {
+            // Jawaban BENAR
+            feedbackTextElement.textContent = `✔ BENAR! Ibu kota ${currentProvince.name} adalah ${currentProvince.capital}.`;
+            feedbackTextElement.classList.remove('text-red-500', 'text-blue-500');
+            feedbackTextElement.classList.add('text-green-600');
+            
+            // Tandai sebagai solved di legend/list
+            const liElement = document.getElementById(`prov-${currentProvince.name.replace(/\s/g, '')}`);
+            if (liElement) {
+                liElement.classList.add('solved');
+                liElement.classList.remove('hover:bg-gray-100'); // Hapus efek hover setelah terjawab
+                liElement.style.cursor = 'default'; // Ubah kursor
+                liElement.style.transform = 'none'; // Hapus efek terangkat
+            }
+
+            // Hapus dari daftar unsolved dan update score
+            const indexToRemove = unsolvedProvinces.findIndex(p => p.name === currentProvince.name);
+            if (indexToRemove !== -1) {
+                unsolvedProvinces.splice(indexToRemove, 1);
+            }
+            updateScore(1);
+            checkButton.disabled = true; // Nonaktifkan cek, harus lanjut ke pertanyaan berikutnya
+            nextButton.focus();
+
+        } else {
+            // Jawaban SALAH
+            feedbackTextElement.textContent = `❌ SALAH. Coba lagi!`;
+            feedbackTextElement.classList.remove('text-green-600', 'text-blue-500');
+            feedbackTextElement.classList.add('text-red-500');
+        }
+    }
+
+    // Fungsi untuk memperbarui skor dan sisa provinsi
+    function updateScore(points) {
+        score += points;
+        scoreElement.textContent = score;
+        remainingProvincesElement.textContent = `Sisa: ${unsolvedProvinces.length} Provinsi`;
+    }
+
+    // Event listener untuk menekan Enter pada input
+    answerInputElement.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !checkButton.disabled) {
+            checkAnswer();
+        }
+    });
+
+    // Mulai game saat halaman dimuat
+    window.onload = initializeGame;
+
+</script>
+
+</body>
+</html>
